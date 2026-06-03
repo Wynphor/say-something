@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 想贴上壁报墙？
+    url: https://github.com/Wynphor/say-something/blob/main/CONTRIBUTING.md
+    about: Fork 仓库，在 wall/ 目录下新建文件，提交 PR 即可自动上墙。

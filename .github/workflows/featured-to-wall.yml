@@ -1,0 +1,90 @@
+name: 精选上墙
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+
+jobs:
+  move-to-wall:
+    if: github.event.label.name == '精选'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 获取 Issue 内容
+        id: issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            // 确定目标目录
+            const dirMap = {
+              '心事': 'whisper',
+              '故事': 'story',
+              '遗憾': 'unsaid',
+              '日常': 'daily',
+              '感恩': 'gratitude',
+            };
+
+            const labels = issue.labels.map(l => l.name);
+            let dir = 'whisper';
+            for (const [label, folder] of Object.entries(dirMap)) {
+              if (labels.includes(label)) {
+                dir = folder;
+                break;
+              }
+            }
+
+            // 从 Issue 内容提取正文（去掉模板提示注释）
+            let body = issue.body || '';
+            body = body.replace(/<!--[\s\S]*?-->/g, '').trim();
+
+            // 生成文件名：标题-日期.md
+            const date = new Date().toISOString().slice(0, 10);
+            const safeTitle = issue.title
+              .replace(/[^一-龥a-zA-Z0-9\s-]/g, '')
+              .trim()
+              .slice(0, 30) || '匿名';
+            const filename = `${safeTitle}-${date}.md`;
+
+            // 生成文件内容
+            const content = `# ${issue.title}\n\n${body}\n\n---\n*来自 [Issue #${issue.number}](${issue.html_url})，${date}*\n`;
+
+            core.setOutput('dir', dir);
+            core.setOutput('filename', filename);
+            core.setOutput('content', content);
+            core.setOutput('title', issue.title);
+            core.setOutput('url', issue.html_url);
+
+      - name: 写入壁报墙
+        run: |
+          mkdir -p wall/${{ steps.issue.outputs.dir }}
+          echo '${{ steps.issue.outputs.content }}' > "wall/${{ steps.issue.outputs.dir }}/${{ steps.issue.outputs.filename }}"
+
+      - name: 提交并推送
+        run: |
+          git config user.name "say-something-bot"
+          git config user.email "bot@say-something.dev"
+          git add wall/
+          git commit -m "📖 壁报墙上新：${{ steps.issue.outputs.title }}"
+          git push
+
+      - name: 在 Issue 留言通知
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `📖 这篇已经被搬到壁报墙了，永久珍藏。\n\n谢谢你的文字。`,
+            });

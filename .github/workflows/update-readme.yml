@@ -1,0 +1,72 @@
+name: 更新最新上墙
+
+on:
+  push:
+    branches: [main]
+    paths: ['wall/**']
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 生成最新上墙列表
+        id: recent
+        run: |
+          echo "## 最新上墙" > recent.md
+          echo "" >> recent.md
+
+          # 获取最近 5 个 wall/ 下新增的文件
+          git log --diff-filter=A --name-only --pretty=format: -- 'wall/*.md' \
+            | grep '^wall/' \
+            | head -5 \
+            | while read file; do
+                [ -z "$file" ] && continue
+                [ ! -f "$file" ] && continue
+                title=$(head -1 "$file" | sed 's/^# //')
+                dir=$(echo "$file" | cut -d'/' -f2)
+                case "$dir" in
+                  whisper) emoji="💭" ;;
+                  story) emoji="📖" ;;
+                  unsaid) emoji="🤫" ;;
+                  poetry) emoji="🌙" ;;
+                  daily) emoji="🌤" ;;
+                  gratitude) emoji="🙏" ;;
+                  archive) emoji="📎" ;;
+                  *) emoji="📝" ;;
+                esac
+                echo "- ${emoji} [${title}](./${file})" >> recent.md
+              done
+
+          echo "" >> recent.md
+          echo "---" >> recent.md
+
+      - name: 更新 README
+        run: |
+          # 替换 README 中的标记区域
+          if grep -q "<!-- recent -->" README.md; then
+            sed -i '/<!-- recent -->/,/<!-- \/recent -->/{//!d;}' README.md
+            sed -i '/<!-- recent -->/r recent.md' README.md
+          else
+            # 如果没有标记，在文件末尾添加
+            echo "" >> README.md
+            echo "<!-- recent -->" >> README.md
+            cat recent.md >> README.md
+            echo "<!-- /recent -->" >> README.md
+          fi
+
+      - name: 提交更新
+        run: |
+          git config user.name "say-something-bot"
+          git config user.email "bot@say-something.dev"
+          git add README.md
+          git diff --cached --quiet && exit 0
+          git commit -m "📋 更新最新上墙"
+          git push

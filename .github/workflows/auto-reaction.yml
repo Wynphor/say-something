@@ -1,0 +1,51 @@
+name: 自动回应
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 对新 Issue 送上 ❤️
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              content: 'heart',
+            });
+
+            // 第一篇 Issue 欢迎语
+            if (context.issue.number <= 20) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `谢谢你的文字 ❤️\n\n有人看到了。`,
+              });
+            }
+
+      - name: 对新评论送上 ❤️
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 不给自己的评论点赞
+            if (context.actor === context.issue.user.login) return;
+
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'heart',
+            });
