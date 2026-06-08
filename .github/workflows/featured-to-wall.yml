@@ -76,6 +76,13 @@ jobs:
             const content = `# ${issue.title}\n\n${body}\n\n---\n*来自 [Issue #${issue.number}](${issue.html_url})，${date}*\n`;
             fs.writeFileSync(filePath, content, 'utf8');
 
+            const relativePath = filePath.split(path.sep).join('/');
+            const encodedPath = relativePath
+              .split('/')
+              .map((part) => encodeURIComponent(part))
+              .join('/');
+            const wallUrl = `${context.payload.repository.html_url}/blob/${context.payload.repository.default_branch}/${encodedPath}`;
+
             const commitTitle = issue.title
               .replace(/[\r\n]/g, ' ')
               .replace(/\s+/g, ' ')
@@ -84,6 +91,7 @@ jobs:
 
             core.setOutput('dir', dir);
             core.setOutput('filename', filename);
+            core.setOutput('wall-url', wallUrl);
             core.setOutput('commit-title', commitTitle);
 
       - name: 提交并推送
@@ -97,13 +105,31 @@ jobs:
           git commit -m "📖 壁报墙上新：${COMMIT_TITLE}"
           git push
 
+      - name: 标记已上墙
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['已上墙'],
+              });
+            } catch (error) {
+              core.warning(`添加已上墙标签失败: ${error.message}`);
+            }
+
       - name: 在 Issue 留言通知
         uses: actions/github-script@v7
+        env:
+          WALL_FILENAME: ${{ steps.issue.outputs.filename }}
+          WALL_URL: ${{ steps.issue.outputs.wall-url }}
         with:
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `📖 这篇已经被搬到壁报墙了，永久珍藏。\n\n谢谢你的文字。`,
+              body: `📖 这篇已经被搬到壁报墙了：\n\n[${process.env.WALL_FILENAME}](${process.env.WALL_URL})\n\n谢谢你的文字。`,
             });
