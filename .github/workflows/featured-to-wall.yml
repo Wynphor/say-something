@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   move-to-wall:
@@ -15,11 +16,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 获取 Issue 内容
+      - name: 获取 Issue 内容并写入壁报墙
         id: issue
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
+            const path = require('path');
+
             const { data: issue } = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -36,7 +40,7 @@ jobs:
               '摘录': 'archive',
             };
 
-            const labels = issue.labels.map(l => l.name);
+            const labels = issue.labels.map((label) => label.name);
             let dir = 'whisper';
             for (const [label, folder] of Object.entries(dirMap)) {
               if (labels.includes(label)) {
@@ -52,31 +56,45 @@ jobs:
             // 生成文件名：标题-日期.md
             const date = new Date().toISOString().slice(0, 10);
             const safeTitle = issue.title
-              .replace(/[^一-龥a-zA-Z0-9\s-]/g, '')
-              .trim()
+              .replace(/[\x00-\x1f\x7f]/g, '')
+              .replace(/[\\/:*?"<>|]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
               .slice(0, 30) || '匿名';
-            const filename = `${safeTitle}-${date}.md`;
 
-            // 生成文件内容
+            const wallDir = path.join('wall', dir);
+            fs.mkdirSync(wallDir, { recursive: true });
+
+            let filename = `${safeTitle}-${date}.md`;
+            let filePath = path.join(wallDir, filename);
+            if (fs.existsSync(filePath)) {
+              filename = `${safeTitle}-${date}-issue-${issue.number}.md`;
+              filePath = path.join(wallDir, filename);
+            }
+
             const content = `# ${issue.title}\n\n${body}\n\n---\n*来自 [Issue #${issue.number}](${issue.html_url})，${date}*\n`;
+            fs.writeFileSync(filePath, content, 'utf8');
+
+            const commitTitle = issue.title
+              .replace(/[\r\n]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 50) || `Issue #${issue.number}`;
 
             core.setOutput('dir', dir);
             core.setOutput('filename', filename);
-            core.setOutput('content', content);
-            core.setOutput('title', issue.title);
-            core.setOutput('url', issue.html_url);
-
-      - name: 写入壁报墙
-        run: |
-          mkdir -p wall/${{ steps.issue.outputs.dir }}
-          echo '${{ steps.issue.outputs.content }}' > "wall/${{ steps.issue.outputs.dir }}/${{ steps.issue.outputs.filename }}"
+            core.setOutput('commit-title', commitTitle);
 
       - name: 提交并推送
+        env:
+          COMMIT_TITLE: ${{ steps.issue.outputs.commit-title }}
         run: |
           git config user.name "say-something-bot"
           git config user.email "bot@say-something.dev"
           git add wall/
-          git commit -m "📖 壁报墙上新：${{ steps.issue.outputs.title }}"
+          git diff --cached --quiet && exit 0
+          git commit -m "📖 壁报墙上新：${COMMIT_TITLE}"
           git push
 
       - name: 在 Issue 留言通知
