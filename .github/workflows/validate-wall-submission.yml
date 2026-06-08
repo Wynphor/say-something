@@ -1,0 +1,41 @@
+name: 校验壁报墙投稿
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 校验投稿文件
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const path = require('path');
+            const { validateWallSubmission } = require(path.join(
+              process.env.GITHUB_WORKSPACE,
+              '.github/scripts/wall-submission-validator'
+            ));
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+
+            const validation = validateWallSubmission(files);
+            if (!validation.valid) {
+              core.setFailed(['壁报墙投稿格式不符合要求：', ...validation.errors].join('\n'));
+              return;
+            }
+
+            core.info('壁报墙投稿格式校验通过');
