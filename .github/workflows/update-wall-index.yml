@@ -1,0 +1,33 @@
+name: 更新壁报墙索引
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wall/**'
+      - '.github/scripts/generate-wall-index.js'
+      - '.github/workflows/update-wall-index.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-wall-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 生成壁报墙索引
+        run: node .github/scripts/generate-wall-index.js
+
+      - name: 提交更新
+        run: |
+          git config user.name "say-something-bot"
+          git config user.email "bot@say-something.dev"
+          git add wall/README.md
+          git diff --cached --quiet && exit 0
+          git commit -m "📚 更新壁报墙索引"
+          git push
