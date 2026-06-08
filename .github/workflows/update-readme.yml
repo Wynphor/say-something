@@ -20,8 +20,7 @@ jobs:
       - name: 生成最新上墙列表
         id: recent
         run: |
-          echo "## 最新上墙" > recent.md
-          echo "" >> recent.md
+          : > recent.md
 
           # 获取最近 5 个 wall/ 下新增的文件
           git log --diff-filter=A --name-only --pretty=format: -- 'wall/*.md' \
@@ -45,8 +44,9 @@ jobs:
                 echo "- ${emoji} [${title}](./${file})" >> recent.md
               done
 
-          echo "" >> recent.md
-          echo "---" >> recent.md
+          if [ ! -s recent.md ]; then
+            echo "*暂无，等待第一篇投稿*" > recent.md
+          fi
 
       - name: 更新 README
         run: |
