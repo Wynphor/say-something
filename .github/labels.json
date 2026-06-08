@@ -1,0 +1,47 @@
+[
+  {
+    "name": "心事",
+    "color": "8b9dc3",
+    "description": "深夜碎碎念，说不出口的小情绪"
+  },
+  {
+    "name": "故事",
+    "color": "c7a27c",
+    "description": "故事、回忆和值得被记住的经历"
+  },
+  {
+    "name": "遗憾",
+    "color": "b7a4c7",
+    "description": "没来得及说出口的话"
+  },
+  {
+    "name": "日常",
+    "color": "f2c879",
+    "description": "天气、路上看到的东西和普通一天"
+  },
+  {
+    "name": "感恩",
+    "color": "9fc5a8",
+    "description": "被温柔对待过的瞬间"
+  },
+  {
+    "name": "摘录",
+    "color": "aeb4bd",
+    "description": "转载的触动文字，请注明出处"
+  },
+  {
+    "name": "精选",
+    "color": "f6a04d",
+    "description": "适合搬到壁报墙长期留下的内容"
+  },
+  {
+    "name": "已上墙",
+    "color": "6fbf73",
+    "description": "内容已经进入 wall 目录"
+  },
+  {
+    "name": "壁报墙",
+    "color": "d9b382",
+    "description": "通过 PR 贴到 wall 目录的投稿"
+  }
+]
