@@ -24,7 +24,8 @@ jobs:
 
           # 获取最近 5 个 wall/ 下新增的文件
           git log --diff-filter=A --name-only --pretty=format: -- 'wall/*.md' \
-            | grep '^wall/' \
+            | grep -v '^wall/README\.md$' \
+            | grep '^wall/[^/]*/.*\.md$' \
             | head -5 \
             | while read file; do
                 [ -z "$file" ] && continue
